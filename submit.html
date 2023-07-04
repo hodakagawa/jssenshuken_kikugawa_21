@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>旅行予定管理アプリ</title>
+  <style>
+   body {
+      font-family: Arial, sans-serif;
+      background-image: url(aiport.png);
+      background-size: cover;
+    }
+
+    h1 {
+      text-align: center;
+      color: white;
+    }
+
+    .form-container {
+      max-width: 500px;
+      margin: 0 auto;
+      background-color: white;
+      padding: 20px;
+      border-radius: 8px;
+    }
+
+    .form-container input,
+    .form-container select,
+    .form-container textarea {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 10px;
+    }
+
+    .form-container button {
+      padding: 8px 16px;
+      background-color: #4CAF50;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+    }
+
+    .schedule-container {
+      max-width: 500px;
+      margin: 20px auto;
+      background-color: white;
+      padding: 20px;
+      border-radius: 8px;
+    }
+
+    .schedule-list {
+      list-style-type: none;
+      padding: 0;
+    }
+
+    .schedule-item {
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 10px;
+      margin-bottom: 10px;
+    }
+
+    .country-flag {
+      width: 32px;
+      height: 24px;
+      background-size: cover;
+      background-position: center;
+      display: inline-block;
+      margin-left: 5px;
+    }
+
+    #calendar {
+      max-width: 800px;
+      margin: 20px auto;
+      background-color: white;
+      padding: 20px;
+      border-radius: 8px;
+    }
+
+    #event-details {
+      max-width: 500px;
+      margin: 20px auto;
+      background-color: white;
+      padding: 20px;
+      border-radius: 8px;
+    }
+
+    #event-details h2 {
+      margin-top: 0;
+    }
+
+    #event-details p {
+      margin-bottom: 10px;
+    }
+  </style>
+  <script src="https://flagcdn.com/js/flag.js"></script>
+</head>
+
+<body>
+  <h1>旅行予定管理アプリ</h1>
+
+  <div class="form-container">
+    <h2>スケジュールに追加</h2>
+    <div>
+      <label for="date">日付：</label>
+      <input type="date" id="date">
+    </div>
+    <div>
+      <label for="event">イベント：</label>
+      <input type="text" id="event" placeholder="イベントを入力してください">
+    </div>
+    <div>
+      <label for="location">場所：</label>
+      <input type="text" id="location" placeholder="場所を入力してください">
+    </div>
+    <div>
+      <label for="country">国：</label>
+      <select id="country">
+        <option value="">国を選択してください</option>
+      </select>
+    </div>
+    <div>
+      <label for="belongings">持ち物：</label>
+      <textarea id="belongings" placeholder="持ち物を入力してください"></textarea>
+    </div>
+    <div>
+      <label for="preparations">準備する物：</label>
+      <textarea id="preparations" placeholder="準備する物を入力してください"></textarea>
+    </div>
+    <div>
+      <button onclick="addSchedule()">スケジュールに追加</button>
+    </div>
+  </div>
+
+  <div id="calendar"></div>
+
+  <div class="schedule-container">
+    <h2>スケジュール一覧</h2>
+    <ul id="schedule-list" class="schedule-list"></ul>
+  </div>
+
+  <div id="event-details"></div>
+
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://code.jquery.com/ui/1.13.1/jquery-ui.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/3.10.2/fullcalendar.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/3.10.2/fullcalendar.min.css">
+
+  <script>
+    var scheduleData = {};
+    var countrySelect = document.getElementById('country');
+
+    fetchCountryList(countrySelect);
+
+    function fetchCountryList(selectElement) {
+      fetch('https://restcountries.com/v2/all')
+        .then(response => response.json())
+        .then(data => {
+          data.forEach(country => {
+            var option = document.createElement('option');
+            option.value = country.name;
+            option.textContent = country.name;
+            selectElement.appendChild(option);
+          });
+        });
+    }
+
+    function addSchedule() {
+      var dateInput = document.getElementById('date');
+      var eventInput = document.getElementById('event');
+      var locationInput = document.getElementById('location');
+      var countryInput = document.getElementById('country');
+      var belongingsInput = document.getElementById('belongings');
+      var preparationsInput = document.getElementById('preparations');
+
+      var date = dateInput.value;
+      var event = eventInput.value;
+      var location = locationInput.value;
+      var country = countryInput.value;
+      var belongings = belongingsInput.value;
+      var preparations = preparationsInput.value;
+
+      if (!date || !event || !location || !country || !belongings || !preparations) {
+        alert("全ての項目を入力してください");
+        return;
+      }
+
+      scheduleData[date] = {
+        event: event,
+        location: location,
+        country: country,
+        belongings: belongings,
+        preparations: preparations
+      };
+
+      dateInput.value = '';
+      eventInput.value = '';
+      locationInput.value = '';
+      countryInput.value = '';
+      belongingsInput.value = '';
+      preparationsInput.value = '';
+
+      displaySchedule();
+      saveScheduleData();
+      updateCalendar();
+    }
+
+    function displaySchedule() {
+      var scheduleList = document.getElementById('schedule-list');
+      scheduleList.innerHTML = '';
+
+      for (var date in scheduleData) {
+        var eventData = scheduleData[date];
+
+        var scheduleItem = document.createElement('li');
+        scheduleItem.className = 'schedule-item';
+
+        var countryFlag = '';
+        if (eventData.country) {
+          countryFlag = `<div class="country-flag" style="background-image: url('https://flagcdn.com/32x24/${eventData.country.toLowerCase()}.png');"></div>`;
+        }
+
+        scheduleItem.innerHTML = `
+          <h3>${date}</h3>
+          <p>イベント：${eventData.event}</p>
+          <p>場所：${eventData.location}</p>
+          <p>国：${eventData.country}${countryFlag}</p>
+          <button onclick="editSchedule('${date}')">編集</button>
+          <button onclick="deleteSchedule('${date}')">削除</button>
+        `;
+
+        scheduleList.appendChild(scheduleItem);
+      }
+    }
+
+    function editSchedule(date) {
+      var eventData = scheduleData[date];
+      if (eventData) {
+        var eventDetails = document.getElementById('event-details');
+        eventDetails.innerHTML = `
+          <h2>スケジュール詳細</h2>
+          <p>日付：${date}</p>
+          <input id="edit-event" type="text" value="${eventData.event}" placeholder="イベント名">
+          <input id="edit-location" type="text" value="${eventData.location}" placeholder="場所">
+          <select id="edit-country">
+            <option value="">国を選択してください</option>
+          </select>
+          <button onclick="updateSchedule('${date}')">更新</button>
+          <button onclick="cancelEdit()">キャンセル</button>
+        `;
+
+        var editCountrySelect = document.getElementById('edit-country');
+        fetchCountryList(editCountrySelect);
+        editCountrySelect.value = eventData.country;
+      }
+    }
+
+    function updateSchedule(date) {
+      var eventData = scheduleData[date];
+      if (eventData) {
+        var editEventInput = document.getElementById('edit-event');
+        var editLocationInput = document.getElementById('edit-location');
+        var editCountryInput = document.getElementById('edit-country');
+
+        eventData.event = editEventInput.value;
+        eventData.location = editLocationInput.value;
+        eventData.country = editCountryInput.value;
+
+        displaySchedule();
+        saveScheduleData();
+        updateCalendar();
+
+        var eventDetails = document.getElementById('event-details');
+        eventDetails.innerHTML = '';
+      }
+    }
+
+    function deleteSchedule(date) {
+      delete scheduleData[date];
+
+      displaySchedule();
+      saveScheduleData();
+      updateCalendar();
+
+      var eventDetails = document.getElementById('event-details');
+      eventDetails.innerHTML = '';
+    }
+
+    function saveScheduleData() {
+      localStorage.setItem('scheduleData', JSON.stringify(scheduleData));
+    }
+
+    function loadScheduleData() {
+      var savedData = localStorage.getItem('scheduleData');
+      if (savedData) {
+        scheduleData = JSON.parse(savedData);
+      }
+      displaySchedule();
+      updateCalendar();
+    }
+
+    function updateCalendar() {
+      $('#calendar').fullCalendar('removeEvents');
+      for (var date in scheduleData) {
+        var eventData = scheduleData[date];
+        $('#calendar').fullCalendar('renderEvent', {
+          title: eventData.event,
+          start: date,
+          end: date,
+          color: '#4CAF50'
+        });
+      }
+    }
+
+    $(document).ready(function() {
+      $('#calendar').fullCalendar({
+        header: {
+          left: 'prev,next today',
+          center: 'title',
+          right: 'month,agendaWeek,agendaDay'
+        },
+        selectable: true,
+        editable: true,
+        eventClick: function(calEvent) {
+          var eventDate = moment(calEvent.start).format('YYYY-MM-DD');
+          var eventData = scheduleData[eventDate];
+          if (eventData) {
+            var eventDetails = document.getElementById('event-details');
+            eventDetails.innerHTML = `
+              <h2>スケジュール詳細</h2>
+              <p>日付：${eventDate}</p>
+              <p>イベント：${eventData.event}</p>
+              <p>場所：${eventData.location}</p>
+              <p>国：${eventData.country}</p>
+              <p>持ち物：${eventData.belongings}</p>
+              <p>準備する物：${eventData.preparations}</p>
+              <button onclick="editSchedule('${eventDate}')">編集</button>
+              <button onclick="deleteSchedule('${eventDate}')">削除</button>
+            `;
+          }
+        }
+      });
+      loadScheduleData();
+    });
+  </script>
+</body>
+
+</html>
